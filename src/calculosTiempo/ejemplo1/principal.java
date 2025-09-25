@@ -15,6 +15,7 @@ public class principal {
         long suma = 0;
         for (int i = 0; i < max; i++) {
             suma += i;
+
         }
 
         LocalTime timeEnd = LocalTime.now();
