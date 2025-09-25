@@ -1,10 +1,10 @@
 package calculosTiempo.codigoSecreto;
 
 public class codigoSecreto {
-    private static long num = 9765246788l;
+    private static long num = 5465246788l;
     private static int longNum = 10;
 
-    public static boolean compare(int numCompare){
+    public static boolean compare(long numCompare){
         return (num == numCompare);
     }
 
