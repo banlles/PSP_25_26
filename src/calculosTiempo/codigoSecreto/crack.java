@@ -3,15 +3,17 @@ package calculosTiempo.codigoSecreto;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
+import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
 
 public class crack {
     static Scanner sc = new Scanner(System.in);
-    final static String pathCompilador = "C:\\Users\\Banlles\\.jdks\\openjdk-23.0.2\\bin\\java.exe";
+    final static String pathCompilador = "C:\\Users\\Banlles\\.jdks\\openjdk-24\\bin\\java.exe";
 
     final static String pathCompiladorCasa = "C:\\Users\\JanBanlles\\.jdks\\openjdk-24\\bin\\java.exe";
 
-    final static String pathClass = "C:\\worksPace\\IntelIj\\PSP\\PSP_25_26\\out\\production\\PSP_25_26";
+    final static String pathClass = "C:\\Users\\Banlles\\IdeaProjects\\PSP_25_26\\out\\production\\PSP_25_26";
 
     final static String pathClassCasa = "C:\\Users\\JanBanlles\\IdeaProjects\\PSP_25_26\\out\\production\\PSP_25_26";
 
@@ -26,22 +28,26 @@ public class crack {
 
         double nConvinations = Math.pow(nLong, nLong);
 
-        long nConvinationsInt = (long) nConvinations; // Resultado: 9
-
+        long nConvinationsInt = (long) nConvinations;
 
         long interval = nConvinationsInt / nProcesors;
         long num1 = 0;
         long num2 = interval;
 
+
         try {
+
+            LocalTime start = LocalTime.now();
 
             // bucle lanzar procesos
             for (int i = 0; i < nProcesors; i++) {
 
-                ProcessBuilder pb = new ProcessBuilder(pathCompiladorCasa,
-                        "-classpath", pathClassCasa, nombreClass, String.valueOf(num1), String.valueOf(num2), String.valueOf(i)
+                ProcessBuilder pb = new ProcessBuilder(pathCompilador,
+                        "-classpath", pathClass, nombreClass, String.valueOf(num1), String.valueOf(num2), String.valueOf(i)
                 );
 
+                pb.redirectErrorStream(true);
+                pb.inheritIO();
                 aProcess[i] = pb.start();
 
                 num1 += interval;
@@ -49,16 +55,28 @@ public class crack {
 
             }
 
-            File file = new File("salida.txt");
-            FileWriter fw = new FileWriter(file);
+            boolean encontrado = false;
+            while (!encontrado) {
+            Thread.sleep(1000);
 
-            for (int i = 0; i < nProcesors; i++) {
-                InputStream is = aProcess[i].getInputStream();  //lee las salidas del proceso ejecutado, los system out
-                byte[] datos = is.readAllBytes(); //  //guarda la salida de lo de arriba en un array de bytes
-                String str = new String(datos); //Guardamos el array de bytes en un String
-                fw.write(str);
+                for (int i = 0; i < nProcesors; i++) {
+
+                    if(aProcess[i].isAlive()) continue;
+
+                    if (aProcess[i].exitValue() == 0) {
+                        for (int j = 0; j < nProcesors; j++) {
+                            aProcess[j].destroy();
+                            System.out.println("ha finalizado el proceso" + j);
+                        }
+                        encontrado = true;
+                        break;
+                    }
+                }
             }
-            fw.close();
+
+
+            LocalTime end = LocalTime.now();
+            System.out.println("Ha tardado " + ChronoUnit.MILLIS.between(start, end) + " milisegundos");
 
         } catch (Exception e) {
             e.printStackTrace();
