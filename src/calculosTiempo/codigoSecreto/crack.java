@@ -1,11 +1,11 @@
 package calculosTiempo.codigoSecreto;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.InputStream;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+
 
 public class crack {
     static Scanner sc = new Scanner(System.in);
@@ -26,7 +26,7 @@ public class crack {
 
         int nLong = codigoSecreto.getLongNum();
 
-        double nConvinations = Math.pow(nLong, nLong);
+        double nConvinations = Math.pow(10, nLong);
 
         long nConvinationsInt = (long) nConvinations;
 
@@ -42,8 +42,8 @@ public class crack {
             // bucle lanzar procesos
             for (int i = 0; i < nProcesors; i++) {
 
-                ProcessBuilder pb = new ProcessBuilder(pathCompilador,
-                        "-classpath", pathClass, nombreClass, String.valueOf(num1), String.valueOf(num2), String.valueOf(i)
+                ProcessBuilder pb = new ProcessBuilder(pathCompiladorCasa,
+                        "-classpath", pathClassCasa, nombreClass, String.valueOf(num1), String.valueOf(num2), String.valueOf(i)
                 );
 
                 pb.redirectErrorStream(true);
@@ -51,32 +51,70 @@ public class crack {
                 aProcess[i] = pb.start();
 
                 num1 += interval;
-                num2 = num1 + interval - 1;
+                num2 = num1 + interval;
 
             }
 
-            boolean encontrado = false;
-            while (!encontrado) {
-            Thread.sleep(1000);
+//            boolean encontrado = false;
+//            while (!encontrado) {
+//            Thread.sleep(1000);
+//
+//                for (int i = 0; i < nProcesors; i++) {
+//
+//                    if(aProcess[i].isAlive()) continue;
+//
+//                    if (aProcess[i].exitValue() == 0) {
+//                        for (int j = 0; j < nProcesors; j++) {
+//                            aProcess[j].destroy();
+//                            System.out.println("ha finalizado el proceso" + j);
+//                        }
+//                        encontrado = true;
+//                        break;
+//                    }
+//                }
+//            }
 
-                for (int i = 0; i < nProcesors; i++) {
+            CountDownLatch fin = new CountDownLatch(1); // para desbloquear el main cuando alguien encuentre
+            AtomicInteger nProcessFinally = new AtomicInteger();
 
-                    if(aProcess[i].isAlive()) continue;
+            for (int i = 0; i < nProcesors; i++) {
+                final int idx = i;
 
-                    if (aProcess[i].exitValue() == 0) {
+                aProcess[i].onExit().thenAccept(proc -> {
+                    int exit = proc.exitValue();
+                    if (exit == 0) {
+                        System.out.println("El proceso " + idx + " encontró el código.");
+                        // parar inmediatamente al resto
                         for (int j = 0; j < nProcesors; j++) {
-                            aProcess[j].destroy();
-                            System.out.println("ha finalizado el proceso" + j);
+                            if (j != idx && aProcess[j].isAlive()) {
+                                aProcess[j].destroy();
+                                System.out.println("ha finalizado el proceso " + j);
+                            }
                         }
-                        encontrado = true;
-                        break;
+                        // medir tiempo aquí si quieres
+                        LocalTime end = LocalTime.now();
+                        System.out.println("Ha tardado " + ChronoUnit.MILLIS.between(start, end) + " ms");
+
+                        fin.countDown(); // ya podemos salir del main
+                    } else {
+                        if (exit != 0) {
+                            nProcessFinally.addAndGet(1);
+                            // proceso que terminó sin éxito
+                            System.out.println("El proceso " + idx + " terminó sin encontrar el código.");
+                        }
+                        if (nProcessFinally.get() == nProcesors) {
+                            fin.countDown();
+                        }
                     }
-                }
+                });
             }
 
-
-            LocalTime end = LocalTime.now();
-            System.out.println("Ha tardado " + ChronoUnit.MILLIS.between(start, end) + " milisegundos");
+            // Bloquea el main hasta que uno haya encontrado y haya parado a los demás
+            try {
+                fin.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
